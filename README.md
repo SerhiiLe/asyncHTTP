@@ -1,3 +1,5 @@
+[English](README_EN.md) | [Русский](README.md)
+
 # asyncHTTP 🚀
 
 Лёгкая, неблокирующая асинхронная библиотека HTTP/HTTPS клиента для микроконтроллеров **ESP8266** и **ESP32** с поддержкой **JSON**, **XML**, **Chunked Transfer Encoding**, **HTTP Keep-Alive** и фонового режима **FreeRTOS** на ESP32.
@@ -385,4 +387,4 @@ httpClient.get("https://api.open-meteo.com/v1/forecast?latitude=46.48&longitude=
 
 ## 📄 Лицензия
 
-Распространяется под лицензией **MIT**. Автор: **Serhii Le**.
+Библиотека распространяется под лицензией **LGPL-3.0**. Вы можете свободно использовать её в своих открытых и коммерческих проектах для микроконтроллеров.
