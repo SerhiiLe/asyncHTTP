@@ -2,6 +2,8 @@
 
 # asyncHTTP 🚀
 
+A lightweight, non-blocking asynchronous HTTP/HTTPS client library for **ESP8266** and **ESP32** with support for **JSON**, **XML**, **Chunked Transfer Encoding**, **HTTP Keep-Alive**, and a background **FreeRTOS task mode** on ESP32.
+
 Лёгкая, неблокирующая асинхронная библиотека HTTP/HTTPS клиента для микроконтроллеров **ESP8266** и **ESP32** с поддержкой **JSON**, **XML**, **Chunked Transfer Encoding**, **HTTP Keep-Alive** и фонового режима **FreeRTOS** на ESP32.
 
 **Zero external dependencies** — библиотека работает на базе стабильных системных сокетов (`WiFiClient` для HTTP, `BearSSL::WiFiClientSecure` на ESP8266 и `WiFiClientSecure` на ESP32) и управляется быстрым неблокирующим конечным автоматом (FSM).
