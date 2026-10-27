@@ -300,13 +300,20 @@ struct AsyncHttpRequest {
     uint32_t customTimeout = 0; // 0 = использовать тайм-аут по умолчанию
     uint8_t redirectCount = 0;
 
-    // Удобные методы добавления пользовательских заголовков
-    void addHeader(const String& name, const String& value) {
+    // Удобные методы добавления пользовательских заголовков (поддерживают чейнинг)
+    AsyncHttpRequest& addHeader(const String& name, const String& value) {
         headers.push_back({name, value});
+        return *this;
     }
 
-    void addHeader(const char* name, const char* value) {
+    AsyncHttpRequest& addHeader(const char* name, const char* value) {
         headers.push_back({String(name), String(value)});
+        return *this;
+    }
+
+    // Очистить список заголовков
+    void clearHeaders() {
+        headers.clear();
     }
 };
 

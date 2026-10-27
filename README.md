@@ -320,7 +320,8 @@ httpClient.get("https://api.open-meteo.com/v1/forecast?latitude=46.48&longitude=
 | `req.payload` | `String` | `""` | Тело запроса (строка, JSON, XML или form-data для POST/PUT/PATCH/DELETE) |
 | `req.contentType` | `String` | `"application/x-www-form-urlencoded"` | Значение заголовка `Content-Type` (например, `"application/json"`, `"text/plain"`) |
 | `req.headers` | `std::vector<HttpHeader>` | `{}` | Список кастомных HTTP-заголовков (пары `{name, value}`) |
-| `req.addHeader(name, value)` | `void` | — | Удобный метод добавления кастомного HTTP-заголовка в список (поддерживает `String` и `"строки"`) |
+| `req.addHeader(name, value)` | `AsyncHttpRequest&` | — | Удобный метод добавления заголовка (поддерживает чейнинг вызовов `req.addHeader(...).addHeader(...)`) |
+| `req.clearHeaders()` | `void` | — | Очистить список всех добавленных заголовков |
 | `req.callback` | `AsyncHttpCallback` | `nullptr` | Функция обратного вызова: `[](AsyncHttpResponse& res) { ... }`, вызываемая по окончании запроса |
 | `req.customTimeout` | `uint32_t` | `0` | Индивидуальный таймаут в миллисекундах (`0` = использовать глобальный таймаут `httpClient.setTimeout()`) |
 | `req.redirectCount` | `uint8_t` | `0` | Счётчик выполненных перенаправлений (защита от циклов 301/302). Управляется FSM автоматически |
