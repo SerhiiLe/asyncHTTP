@@ -1,0 +1,22 @@
+{
+  "name": "asyncHTTP",
+  "version": "1.0.0",
+  "description": "Lightweight, zero-external-dependency non-blocking asynchronous HTTP/HTTPS client for ESP8266 and ESP32 with JSON/XML support, Keep-Alive, chunked transfer decoding, and FreeRTOS task mode.",
+  "keywords": "http, https, async, non-blocking, esp8266, esp32, json, xml, chunked",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SerhiiLe/asyncHTTP.git"
+  },
+  "authors": [
+    {
+      "name": "Serhii Le",
+      "maintainer": true
+    }
+  ],
+  "license": "MIT",
+  "frameworks": "arduino",
+  "platforms": [
+    "espressif8266",
+    "espressif32"
+  ]
+}
