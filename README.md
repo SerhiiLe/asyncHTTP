@@ -16,12 +16,14 @@
 4. [Примеры использования](#-примеры-использования)
    - [1. GET запрос (Погода JSON с ArduinoJson)](#1-get-запрос-погода-json-с-arduinojson)
    - [2. GET запрос с быстрым извлечением (без библиотек)](#2-get-запрос-с-быстрым-извлечением-без-библиотек)
-   - [3. POST запрос параметров формы (Form-Urlencoded)](#3-post-запрос-параметров-формы-form-urlencoded)
-   - [4. POST запрос с JSON телом](#4-post-запрос-с-json-телом)
-   - [5. Универсальный send() с кастомными заголовками и Bearer токеном](#5-универсальный-send-с-кастомными-заголовками-и-bearer-токеном)
-   - [6. Конвейер запросов с Keep-Alive](#6-конвейер-запросов-с-keep-alive)
+   - [3. POST запрос (Form-Urlencoded и JSON)](#3-post-запрос-form-urlencoded-и-json)
+   - [4. PUT и PATCH запросы](#4-put-и-patch-запросы)
+   - [5. DELETE и HEAD запросы](#5-delete-и-head-запросы)
+   - [6. Универсальный send() — Бриллиант реализации](#6-универсальный-send--бриллиант-реализации)
+   - [7. Конвейер запросов с Keep-Alive](#7-конвейер-запросов-с-keep-alive)
 5. [API Справочник](#-api-справочник)
    - [Методы класса AsyncHTTP](#методы-класса-asynchttp)
+   - [Структура запроса AsyncHttpRequest](#структура-запроса-asynchttprequest)
    - [Структура ответа AsyncHttpResponse](#структура-ответа-asynchttpresponse)
    - [Коды ошибок HttpError](#коды-ошибок-httperror)
 6. [Сравнение со стандартным HTTPClient](#-сравнение-со-стандартным-httpclient)
@@ -151,32 +153,58 @@ httpClient.get("https://ultragenerator.com/citaty/handler.php", [](AsyncHttpResp
 });
 ```
 
-### 3. POST запрос параметров формы (Form-Urlencoded)
-Тип контента `application/x-www-form-urlencoded` установлен по умолчанию:
+### 3. POST запрос (Form-Urlencoded и JSON)
 ```cpp
-String url = "https://httpbin.org/post";
-String params = "method=getQuote&format=json&lang=ru";
-
-httpClient.post(url, params, [](AsyncHttpResponse& res) {
+// 1. Отправка параметров формы (тип по умолчанию: application/x-www-form-urlencoded)
+httpClient.post("https://httpbin.org/post", "method=getQuote&lang=ru", [](AsyncHttpResponse& res) {
     if (res.isSuccess()) {
-        Serial.println("POST запрос успешно выполнен!");
+        Serial.println("POST форма отправлена!");
     }
 });
-```
 
-### 4. POST запрос с JSON телом
-```cpp
-String url = "https://httpbin.org/post";
+// 2. Отправка JSON документа
 String jsonPayload = "{\"device\":\"Clock_Mini\",\"temp\":22.4}";
-
-httpClient.post(url, jsonPayload, "application/json", [](AsyncHttpResponse& res) {
+httpClient.post("https://httpbin.org/post", jsonPayload, "application/json", [](AsyncHttpResponse& res) {
     if (res.isSuccess()) {
         Serial.println("JSON успешно доставлен на сервер!");
     }
 });
 ```
 
-### 5. Универсальный send() с кастомными заголовками и Bearer токеном
+### 4. PUT и PATCH запросы
+Методы `put()` и `patch()` работают аналогично `post()`:
+```cpp
+// Обновление состояния ресурса (PUT)
+httpClient.put("https://api.myserver.com/sensors/1", "{\"state\":\"ON\"}", "application/json", [](AsyncHttpResponse& res) {
+    Serial.printf("PUT статус: %d\n", res.code);
+});
+
+// Частичное изменение данных (PATCH)
+httpClient.patch("https://api.myserver.com/settings", "{\"brightness\":80}", "application/json", [](AsyncHttpResponse& res) {
+    Serial.printf("PATCH статус: %d\n", res.code);
+});
+```
+
+### 5. DELETE и HEAD запросы
+```cpp
+// Удаление записи (DELETE без тела)
+httpClient.del("https://api.myserver.com/records/42", [](AsyncHttpResponse& res) {
+    if (res.isSuccess()) Serial.println("Запись удалена");
+});
+
+// Проверка доступности ресурса и метаданных без загрузки тела (HEAD)
+// В соответствии с RFC 7231/9110 тело никогда не запрашивается и не читается
+httpClient.head("https://api.myserver.com/large-file.bin", [](AsyncHttpResponse& res) {
+    if (res.isSuccess()) {
+        Serial.printf("Размер удалённого файла: %d байт\n", res.contentLength);
+        Serial.printf("Тип контента: %s\n", res.contentType.c_str());
+    }
+});
+```
+
+### 6. Универсальный send() — Бриллиант реализации
+Метод `send(req)` — это центральный бриллиант библиотеки. Он обеспечивает исчерпывающий декларативный контроль: кастомные HTTP-заголовки, персональный таймаут запроса, любой HTTP-метод.
+
 ```cpp
 AsyncHttpRequest req;
 req.method = HTTP_POST;
@@ -184,18 +212,18 @@ req.url = "https://api.myserver.com/v1/telemetry";
 req.payload = "{\"status\":\"active\"}";
 req.contentType = "application/json";
 
-// Добавление заголовков авторизации и кастомных метаданных:
-req.headers.push_back({"Authorization", "Bearer my_secret_token_123"});
-req.headers.push_back({"X-Device-Id", "ESP8266_Clock"});
+// Удобное добавление авторизационных и пользовательских заголовков:
+req.addHeader("Authorization", "Bearer secret_jwt_token_123");
+req.addHeader("X-Device-Id", "ESP8266_Clock");
 
-// Индивидуальный таймаут именно для этого запроса:
-req.customTimeout = 5000; // 5 секунд
+// Индивидуальный таймаут (в мс) именно для этой сетевой операции:
+req.customTimeout = 5000; // 5 секунд вместо глобальных 10
 
 req.callback = [](AsyncHttpResponse& res) {
     if (res.isSuccess()) {
-        Serial.printf("Сервер ответил HTTP %d\n", res.code);
+        Serial.printf("Сервер ответил HTTP %d: %s\n", res.code, res.body.c_str());
     } else {
-        Serial.printf("Ошибка авторизации/сети: %d\n", res.code);
+        Serial.printf("Ошибка (%d): %s\n", res.code, res.errorString().c_str());
     }
 };
 
@@ -232,15 +260,24 @@ httpClient.get("https://api.open-meteo.com/v1/forecast?latitude=46.48&longitude=
 * **`void tick()`**  
   Шаг конечного автомата. На ESP8266 обязательно вызывается в `loop()`.
 
-#### Отправка запросов
-* **`bool get(const String& url, AsyncHttpCallback cb = nullptr)`**  
-  **`bool get(const char* url, AsyncHttpCallback cb = nullptr)`**  
-  Постановка в очередь асинхронного GET-запроса.
-* **`bool post(const String& url, const String& payload, const char* contentType = "application/x-www-form-urlencoded", AsyncHttpCallback cb = nullptr)`**  
-  **`bool post(const char* url, const char* payload, const char* contentType = "application/x-www-form-urlencoded", AsyncHttpCallback cb = nullptr)`**  
-  Постановка в очередь асинхронного POST-запроса с телом.
+#### Отправка запросов (Ярлыки и send)
+Все методы-ярлыки появляются в автодополнении редактора кода и под капотом обращаются к универсальному `send()`:
+
+* **`bool get(url, cb = nullptr)`**  
+  Асинхронный GET-запрос (`String` или `const char*`).
+* **`bool post(url, payload, contentType = "application/x-www-form-urlencoded", cb = nullptr)`**  
+  Асинхронный POST-запрос (`String` или `const char*`).
+* **`bool put(url, payload, contentType = "application/x-www-form-urlencoded", cb = nullptr)`**  
+  Асинхронный PUT-запрос с замещением/обновлением ресурса.
+* **`bool patch(url, payload, contentType = "application/x-www-form-urlencoded", cb = nullptr)`**  
+  Асинхронный PATCH-запрос для частичного обновления ресурса.
+* **`bool del(url, cb = nullptr)`**  
+  **`bool del(url, payload, contentType = "application/x-www-form-urlencoded", cb = nullptr)`**  
+  Асинхронный DELETE-запрос для удаления ресурса (с опциональным телом).
+* **`bool head(url, cb = nullptr)`**  
+  Асинхронный HEAD-запрос для быстрого получения заголовков и проверки ресурса без скачивания тела.
 * **`bool send(const AsyncHttpRequest& req)`**  
-  Универсальная отправка запроса с кастомным методом (`HTTP_GET`, `HTTP_POST`, `HTTP_PUT`, `HTTP_DELETE`, `HTTP_HEAD`, `HTTP_PATCH`) и произвольными заголовками.
+  Универсальный метод отправки любого запроса с кастомными заголовками, персональным таймаутом и методом.
 
 #### Диагностика и статус
 * **`bool isBusy() const`**  
@@ -269,6 +306,24 @@ httpClient.get("https://api.open-meteo.com/v1/forecast?latitude=46.48&longitude=
   Максимальная глубина очереди запросов (по умолчанию 16).
 * **`void setBufferSizes(uint16_t rx, uint16_t tx)`**  
   Настройка буферов BearSSL для ESP8266 (по умолчанию 2048 RX, 512 TX).
+
+---
+
+### Структура запроса AsyncHttpRequest
+
+Метод **`send(const AsyncHttpRequest& req)`** — это **бриллиант библиотеки**, предоставляющий исчерпывающий контроль над запросом в декларативном стиле. Все методы-обёртки (`get`, `post`, `put`, `patch`, `del`, `head`) под капотом собирают структуру `AsyncHttpRequest` и ставят её в очередь.
+
+| Поле / Метод | Тип | По умолчанию | Описание |
+| :--- | :--- | :---: | :--- |
+| `req.method` | `HttpMethod` | `HTTP_GET` | Метод HTTP: `HTTP_GET`, `HTTP_POST`, `HTTP_PUT`, `HTTP_DELETE`, `HTTP_HEAD`, `HTTP_PATCH` |
+| `req.url` | `String` | `""` | Полный адрес целевого ресурса (`http://` или `https://`, порт, путь и query-параметры) |
+| `req.payload` | `String` | `""` | Тело запроса (строка, JSON, XML или form-data для POST/PUT/PATCH/DELETE) |
+| `req.contentType` | `String` | `"application/x-www-form-urlencoded"` | Значение заголовка `Content-Type` (например, `"application/json"`, `"text/plain"`) |
+| `req.headers` | `std::vector<HttpHeader>` | `{}` | Список кастомных HTTP-заголовков (пары `{name, value}`) |
+| `req.addHeader(name, value)` | `void` | — | Удобный метод добавления кастомного HTTP-заголовка в список (поддерживает `String` и `"строки"`) |
+| `req.callback` | `AsyncHttpCallback` | `nullptr` | Функция обратного вызова: `[](AsyncHttpResponse& res) { ... }`, вызываемая по окончании запроса |
+| `req.customTimeout` | `uint32_t` | `0` | Индивидуальный таймаут в миллисекундах (`0` = использовать глобальный таймаут `httpClient.setTimeout()`) |
+| `req.redirectCount` | `uint8_t` | `0` | Счётчик выполненных перенаправлений (защита от циклов 301/302). Управляется FSM автоматически |
 
 ---
 

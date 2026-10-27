@@ -290,7 +290,6 @@ struct AsyncHttpResponse {
 // Тип функции обратного вызова
 using AsyncHttpCallback = std::function<void(AsyncHttpResponse&)>;
 
-// Структура запроса HTTP
 struct AsyncHttpRequest {
     HttpMethod method = HTTP_GET;
     String url;
@@ -300,6 +299,15 @@ struct AsyncHttpRequest {
     AsyncHttpCallback callback = nullptr;
     uint32_t customTimeout = 0; // 0 = использовать тайм-аут по умолчанию
     uint8_t redirectCount = 0;
+
+    // Удобные методы добавления пользовательских заголовков
+    void addHeader(const String& name, const String& value) {
+        headers.push_back({name, value});
+    }
+
+    void addHeader(const char* name, const char* value) {
+        headers.push_back({String(name), String(value)});
+    }
 };
 
 #endif // ASYNC_HTTP_TYPES_H

@@ -31,7 +31,7 @@
 +-------------------------------------------------------------+
 |                          AsyncHTTP                          |
 |   - begin() / stop() / tick()                               |
-|   - get(), post(), send()                                   |
+|   - get(), post(), put(), patch(), del(), head(), send()    |
 |   - Request FIFO Queue (Очередь запросов)                   |
 |   - Keep-Alive Manager & Idle Timeout Auto-Close            |
 |   - Redirect Manager (301, 302, 303, 307, 308)              |
@@ -81,7 +81,7 @@ stateDiagram-v2
     STATE_READ_HEADERS --> STATE_CONNECTING : Обнаружен редирект (301/302)
     STATE_READ_HEADERS --> STATE_IDLE : Таймаут чтения заголовков
 
-    STATE_READ_BODY --> STATE_IDLE : Завершено (Content-Length / Chunk 0 / EOF)
+    STATE_READ_BODY --> STATE_IDLE : Завершено (Content-Length / Chunk 0 / EOF / HEAD)
     STATE_READ_BODY --> STATE_IDLE : Ошибка таймаута / Превышен maxBodySize
 ```
 
@@ -90,7 +90,7 @@ stateDiagram-v2
 2. **`STATE_CONNECTING`**: Проверяет схему (`http` или `https`), выбирает соответствующий клиент (`_clientHttp` или `_clientHttps`) и вызывает `connect(host, port)`.
 3. **`STATE_SENDING`**: Формирует HTTP/1.1 пакет, отправляет метод, путь, Host, заголовки, тело и переходит в ожидание ответа.
 4. **`STATE_WAIT_HEADERS`**: Неблокирующее ожидание первого байта ответа. Если в `tick()` данных нет — мгновенно возвращает управление в `loop()`.
-5. **`STATE_READ_HEADERS`**: Построчное чтение заголовков. Парсит код ответа, `Content-Length`, `Transfer-Encoding`, `Location`, `Connection`. При получении `\r\n` переключает режим приёма тела.
+5. **`STATE_READ_HEADERS`**: Построчное чтение заголовков. Парсит код ответа, `Content-Length`, `Transfer-Encoding`, `Location`, `Connection`. При получении `\r\n` заголовки считаются прочитанными. Если метод запроса был `HTTP_HEAD` (RFC 7231/9110), чтение тела не выполняется и запрос сразу переходит к завершению.
 6. **`STATE_READ_BODY`**: Приём полезной нагрузки в зависимости от типа передачи:
    - **Chunked Decoder:** пошаговый разбор hex-длин и данных чанков.
    - **Content-Length:** приём точного количества байт блоками до 128 байт.

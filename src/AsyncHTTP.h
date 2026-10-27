@@ -207,6 +207,94 @@ public:
         return post(String(url), String(payload), contentType, cb);
     }
 
+    // Асинхронный PUT запрос (String)
+    bool put(const String& url, const String& payload, 
+             const char* contentType = "application/x-www-form-urlencoded", 
+             AsyncHttpCallback cb = nullptr) {
+        AsyncHttpRequest req;
+        req.method = HTTP_PUT;
+        req.url = url;
+        req.payload = payload;
+        req.contentType = contentType;
+        req.callback = cb;
+        return _enqueueRequest(req);
+    }
+
+    // Асинхронный PUT запрос (const char*)
+    bool put(const char* url, const char* payload, 
+             const char* contentType = "application/x-www-form-urlencoded", 
+             AsyncHttpCallback cb = nullptr) {
+        return put(String(url), String(payload), contentType, cb);
+    }
+
+    // Асинхронный PATCH запрос (String)
+    bool patch(const String& url, const String& payload, 
+               const char* contentType = "application/x-www-form-urlencoded", 
+               AsyncHttpCallback cb = nullptr) {
+        AsyncHttpRequest req;
+        req.method = HTTP_PATCH;
+        req.url = url;
+        req.payload = payload;
+        req.contentType = contentType;
+        req.callback = cb;
+        return _enqueueRequest(req);
+    }
+
+    // Асинхронный PATCH запрос (const char*)
+    bool patch(const char* url, const char* payload, 
+               const char* contentType = "application/x-www-form-urlencoded", 
+               AsyncHttpCallback cb = nullptr) {
+        return patch(String(url), String(payload), contentType, cb);
+    }
+
+    // Асинхронный DELETE запрос без тела (String)
+    bool del(const String& url, AsyncHttpCallback cb = nullptr) {
+        AsyncHttpRequest req;
+        req.method = HTTP_DELETE;
+        req.url = url;
+        req.callback = cb;
+        return _enqueueRequest(req);
+    }
+
+    // Асинхронный DELETE запрос без тела (const char*)
+    bool del(const char* url, AsyncHttpCallback cb = nullptr) {
+        return del(String(url), cb);
+    }
+
+    // Асинхронный DELETE запрос с телом (String)
+    bool del(const String& url, const String& payload, 
+             const char* contentType = "application/x-www-form-urlencoded", 
+             AsyncHttpCallback cb = nullptr) {
+        AsyncHttpRequest req;
+        req.method = HTTP_DELETE;
+        req.url = url;
+        req.payload = payload;
+        req.contentType = contentType;
+        req.callback = cb;
+        return _enqueueRequest(req);
+    }
+
+    // Асинхронный DELETE запрос с телом (const char*)
+    bool del(const char* url, const char* payload, 
+             const char* contentType = "application/x-www-form-urlencoded", 
+             AsyncHttpCallback cb = nullptr) {
+        return del(String(url), String(payload), contentType, cb);
+    }
+
+    // Асинхронный HEAD запрос (String)
+    bool head(const String& url, AsyncHttpCallback cb = nullptr) {
+        AsyncHttpRequest req;
+        req.method = HTTP_HEAD;
+        req.url = url;
+        req.callback = cb;
+        return _enqueueRequest(req);
+    }
+
+    // Асинхронный HEAD запрос (const char*)
+    bool head(const char* url, AsyncHttpCallback cb = nullptr) {
+        return head(String(url), cb);
+    }
+
     // Универсальный асинхронный запрос с расширенными параметрами и заголовками
     bool send(const AsyncHttpRequest& req) {
         return _enqueueRequest(req);
@@ -556,7 +644,8 @@ private:
             req += F("Connection: close\r\n");
         }
 
-        if (_currentReq.payload.length() > 0 || _currentReq.method == HTTP_POST || _currentReq.method == HTTP_PUT) {
+        if (_currentReq.payload.length() > 0 || _currentReq.method == HTTP_POST || 
+            _currentReq.method == HTTP_PUT || _currentReq.method == HTTP_PATCH) {
             if (_currentReq.contentType.length() > 0) {
                 req += F("Content-Type: ");
                 req += _currentReq.contentType;
@@ -737,6 +826,12 @@ private:
                 _finishRequest();
                 return;
             }
+        }
+
+        // RFC 7231 / RFC 9110: Ответ на запрос HEAD никогда не содержит тело сообщения
+        if (_currentReq.method == HTTP_HEAD) {
+            _onBodyFinished();
+            return;
         }
 
         if (_isChunked) {
