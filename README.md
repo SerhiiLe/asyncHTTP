@@ -2,162 +2,325 @@
 
 Лёгкая, неблокирующая асинхронная библиотека HTTP/HTTPS клиента для микроконтроллеров **ESP8266** и **ESP32** с поддержкой **JSON**, **XML**, **Chunked Transfer Encoding**, **HTTP Keep-Alive** и фонового режима **FreeRTOS** на ESP32.
 
-Zero external dependencies — библиотека работает на базе стабильных системных сокетов (`WiFiClient` для HTTP, `BearSSL::WiFiClientSecure` на ESP8266 и `WiFiClientSecure` на ESP32) и управляется быстрым неблокирующим конечным автоматом (FSM).
+**Zero external dependencies** — библиотека работает на базе стабильных системных сокетов (`WiFiClient` для HTTP, `BearSSL::WiFiClientSecure` на ESP8266 и `WiFiClientSecure` на ESP32) и управляется быстрым неблокирующим конечным автоматом (FSM).
+
+📖 Подробное описание внутреннего устройства и спецификация доступны в **[ARCHITECTURE.md](ARCHITECTURE.md)**.
 
 ---
 
-## ⚡ Почему asyncHTTP?
+## 📑 Оглавление
 
-В стандартных библиотеках (например, `ESP8266HTTPClient` или `HTTPClient`):
-- Вызов `http.GET()` или `http.POST()` является **полностью синхронным и блокирующим**.
-- На ESP8266 процесс разрешения DNS, TLS-рукопожатия (BearSSL), ожидания ответа сервера и скачивания тела занимает от **1 до 4 секунд**.
-- На это время **главный цикл `loop()` замирает**: динамическая индикация, опрос кнопок, плавные анимации бегущей строки, секундные точки и часы полностью зависают.
-
-**asyncHTTP решает эту проблему фундаментально:**
-1. **Zero-blocking FSM (конечный автомат):** Шаг `httpClient.tick()` выполняется за доли микросекунды. Заголовки и тело ответа считываются по мере их поступления в сокет, не задерживая основной цикл.
-2. **HTTP Keep-Alive:** Соединение с сервером остаётся открытым между последовательными запросами (например, погода + прогноз к `api.open-meteo.com`). Это исключает повторные тяжелые TLS-рукопожатия.
-3. **Chunked Transfer Encoding:** Полная поддержка потоковой передачи чанками (`Transfer-Encoding: chunked`), которую используют большинство современных сервисов (Open-Meteo и др.). Чанки декодируются на лету без сырых hex-разделителей.
-4. **Встроенный парсинг JSON и XML:**
-   - Полная интеграция с `ArduinoJson 7` через `res.parseJson(doc)`.
-   - Встроенный легковесный экстрактор `res.extract("field", isJson)` для мгновенного извлечения значений без расхода оперативной памяти.
-5. **Очередь запросов (Request FIFO Queue):** Если запущено несколько запросов одновременно, они выстраиваются в очередь и выполняются последовательно с вызовом соответствующих callback-функций.
-6. **ESP32 FreeRTOS Task Mode:** На ESP32 библиотека может работать в полностью изолированной фоновой задаче FreeRTOS на соседнем ядре (`AsyncHTTP httpClient(true);`). В этом случае даже не нужно вызывать `tick()` в `loop()`.
-7. **Автоматический редирект (301, 302, 307, 308):** Автоматический переход по `Location` с поддержкой абсолютных и относительных путей.
+1. [Ключевые возможности](#-ключевые-возможности)
+2. [Установка](#-установка)
+3. [Быстрый старт](#-быстрый-старт)
+4. [Примеры использования](#-примеры-использования)
+   - [1. GET запрос (Погода JSON с ArduinoJson)](#1-get-запрос-погода-json-с-arduinojson)
+   - [2. GET запрос с быстрым извлечением (без библиотек)](#2-get-запрос-с-быстрым-извлечением-без-библиотек)
+   - [3. POST запрос параметров формы (Form-Urlencoded)](#3-post-запрос-параметров-формы-form-urlencoded)
+   - [4. POST запрос с JSON телом](#4-post-запрос-с-json-телом)
+   - [5. Универсальный send() с кастомными заголовками и Bearer токеном](#5-универсальный-send-с-кастомными-заголовками-и-bearer-токеном)
+   - [6. Конвейер запросов с Keep-Alive](#6-конвейер-запросов-с-keep-alive)
+5. [API Справочник](#-api-справочник)
+   - [Методы класса AsyncHTTP](#методы-класса-asynchttp)
+   - [Структура ответа AsyncHttpResponse](#структура-ответа-asynchttpresponse)
+   - [Коды ошибок HttpError](#коды-ошибок-httperror)
+6. [Сравнение со стандартным HTTPClient](#-сравнение-со-стандартным-httpclient)
+7. [Лицензия](#-лицензия)
 
 ---
 
-## 📋 Архитектура конечного автомата (FSM)
+## ⚡ Ключевые возможности
 
+* **Zero-blocking FSM (конечный автомат):** Шаг `httpClient.tick()` выполняется за доли микросекунды. Заголовки и тело ответа считываются по мере их поступления в сокет, не задерживая основной цикл `loop()`.
+* **Zero External Dependencies:** Никаких сторонних сетевых библиотек (`AsyncTCP`, `ESPAsyncTCP`). Только официальные стабильные сокеты ядра.
+* **HTTP Keep-Alive с автотаймаутом:** Соединение удерживается открытым между последовательными запросами (например, погода + прогноз к `api.open-meteo.com`), исключая повторные тяжёлые TLS-рукопожатия (ускорение с ~1000 мс до ~20–30 мс). При бездействии сокет автоматически закрывается и память освобождается.
+* **Chunked Transfer Encoding:** Полноценный потоковый декодер чанков на лету (поддержка Open-Meteo и других современных API).
+* **Встроенный экстрактор и поддержка ArduinoJson:**
+  - Встроенный метод `res.extract("field", isJson)` для мгновенного извлечения значений из JSON/XML с автоматическим декодированием Unicode (`\u0430` -> UTF-8) и XML-сущностей (`&quot;`, `&amp;`).
+  - Прозрачная интеграция с `ArduinoJson 7` через `res.parseJson(doc)`.
+* **Очередь запросов (Request FIFO Queue):** Запросы безопасно выстраиваются в очередь и выполняются последовательно с индивидуальными callback-функциями.
+* **ESP32 FreeRTOS Task Mode:** Опциональная работа в полностью изолированной фоновой задаче FreeRTOS на соседнем ядре (`AsyncHTTP httpClient(true);`).
+* **Автоматические редиректы (301, 302, 303, 307, 308):** Автоматический переход по `Location` с поддержкой абсолютных и относительных путей.
+
+---
+
+## 📦 Установка
+
+### PlatformIO
+Добавьте библиотеку в секцию `lib_deps` вашего `platformio.ini`:
+```ini
+lib_deps =
+    https://github.com/SerhiiLe/asyncHTTP.git
+    bblanchon/ArduinoJson @ ^7.0.0  ; опционально, для работы с JSON
 ```
-[ IDLE ] ──(Запрос из очереди)──> [ CONNECTING ] (DNS/TLS)
-   ▲                                      │
-   │                                      ▼
-[ FINISH / CALLBACK ]                 [ SENDING ] (HTTP Headers + Body)
-   ▲                                      │
-   │                                      ▼
-   ├── [ READ_BODY ] <── [ READ_HEADERS ] <── [ WAIT_HEADERS ]
-       (Chunked / Len / EOF)
-```
+
+### Arduino IDE
+1. Скачайте репозиторий в виде ZIP-архива.
+2. В Arduino IDE выберите: **Скетч → Подключить библиотеку → Добавить .ZIP библиотеку...**
+3. Либо клонируйте репозиторий в папку библиотек:
+   ```bash
+   cd ~/Arduino/libraries
+   git clone https://github.com/SerhiiLe/asyncHTTP.git
+   ```
 
 ---
 
 ## 🚀 Быстрый старт
 
-### 1. Подключение библиотеки
 ```cpp
+#include <Arduino.h>
+#if defined(ESP8266)
+    #include <ESP8266WiFi.h>
+#elif defined(ESP32)
+    #include <WiFi.h>
+#endif
 #include <AsyncHTTP.h>
-#include <ArduinoJson.h> // опционально для JSON
 
-// На ESP8266:
-AsyncHTTP httpClient;
+// Создание объекта клиента
+#if defined(ESP32)
+AsyncHTTP httpClient(true); // на ESP32 работает в фоновой задаче FreeRTOS
+#else
+AsyncHTTP httpClient;       // на ESP8266 неблокирующий FSM в loop()
+#endif
 
-// На ESP32 (с фоновой задачей FreeRTOS):
-// AsyncHTTP httpClient(true);
-```
-
-### 2. Инициализация в setup()
-```cpp
 void setup() {
     Serial.begin(115200);
     WiFi.begin("SSID", "PASSWORD");
     while (WiFi.status() != WL_CONNECTED) delay(500);
 
     httpClient.begin();
-    httpClient.setTimeout(10000); // 10 секунд
-    httpClient.setKeepAlive(true);
+    httpClient.setKeepAlive(10); // Удержание Keep-Alive 10 секунд
+
+    // Отправка запроса
+    httpClient.get("https://dummyjson.com/quotes/random", [](AsyncHttpResponse& res) {
+        if (res.isSuccess()) {
+            Serial.printf("Цитата: %s\n", res.extract("quote").c_str());
+        }
+    });
+}
+
+void loop() {
+    // На ESP8266 обязательно вызывается в loop():
+    httpClient.tick();
+
+    // Пользовательский код часов, кнопок и дисплея работает без задержек:
 }
 ```
 
-### 3. Отправка GET запроса (Погода JSON)
+---
+
+## 💡 Примеры использования
+
+### 1. GET запрос (Погода JSON с ArduinoJson)
 ```cpp
-httpClient.get("https://api.open-meteo.com/v1/forecast?latitude=46.48&longitude=30.74&current=temperature_2m", [](AsyncHttpResponse& res) {
+const char* url = "https://api.open-meteo.com/v1/forecast?latitude=46.48&longitude=30.74&current=temperature_2m,relative_humidity_2m";
+
+httpClient.get(url, [](AsyncHttpResponse& res) {
     if (res.isSuccess()) {
         JsonDocument doc;
-        res.parseJson(doc);
-        float temp = doc["current"]["temperature_2m"];
-        Serial.printf("Temperature: %.1f °C\n", temp);
+        DeserializationError err = res.parseJson(doc);
+        if (!err) {
+            float temp = doc["current"]["temperature_2m"];
+            int hum = doc["current"]["relative_humidity_2m"];
+            Serial.printf("Температура: %.1f °C, Влажность: %d %%\n", temp, hum);
+        }
     } else {
-        Serial.printf("Error: %d (%s)\n", res.code, res.errorString().c_str());
+        Serial.printf("Ошибка: %d (%s)\n", res.code, res.errorString().c_str());
     }
 });
 ```
 
-### 4. Извлечение цитаты без ArduinoJson (Легковесный extract)
+### 2. GET запрос с быстрым извлечением (без библиотек)
+Извлечение строковых и числовых полей из JSON или XML без аллокации дерева документов:
 ```cpp
+// JSON ответ
 httpClient.get("https://dummyjson.com/quotes/random", [](AsyncHttpResponse& res) {
     if (res.isSuccess()) {
-        String quote = res.extract("quote", true);
+        String quote = res.extract("quote", true);   // true = JSON
         String author = res.extract("author", true);
         Serial.printf("\"%s\" — %s\n", quote.c_str(), author.c_str());
     }
 });
-```
 
-### 5. Отправка POST запроса
-```cpp
-httpClient.post("https://httpbin.org/post", "param1=value1&param2=value2", "application/x-www-form-urlencoded", [](AsyncHttpResponse& res) {
+// XML ответ
+httpClient.get("https://ultragenerator.com/citaty/handler.php", [](AsyncHttpResponse& res) {
     if (res.isSuccess()) {
-        Serial.println("POST successful!");
+        String quote = res.extract("quote", false);  // false = XML
+        Serial.printf("XML Цитата: %s\n", quote.c_str());
     }
 });
 ```
 
-### 6. Шаг автомата в loop()
+### 3. POST запрос параметров формы (Form-Urlencoded)
+Тип контента `application/x-www-form-urlencoded` установлен по умолчанию:
 ```cpp
-void loop() {
-    // На ESP8266 вызывается в loop() обязательно:
-    httpClient.tick();
+String url = "https://httpbin.org/post";
+String params = "method=getQuote&format=json&lang=ru";
 
-    // Пользовательский код часов, кнопок и дисплея работает без задержек:
-    updateDisplay();
-}
+httpClient.post(url, params, [](AsyncHttpResponse& res) {
+    if (res.isSuccess()) {
+        Serial.println("POST запрос успешно выполнен!");
+    }
+});
+```
+
+### 4. POST запрос с JSON телом
+```cpp
+String url = "https://httpbin.org/post";
+String jsonPayload = "{\"device\":\"Clock_Mini\",\"temp\":22.4}";
+
+httpClient.post(url, jsonPayload, "application/json", [](AsyncHttpResponse& res) {
+    if (res.isSuccess()) {
+        Serial.println("JSON успешно доставлен на сервер!");
+    }
+});
+```
+
+### 5. Универсальный send() с кастомными заголовками и Bearer токеном
+```cpp
+AsyncHttpRequest req;
+req.method = HTTP_POST;
+req.url = "https://api.myserver.com/v1/telemetry";
+req.payload = "{\"status\":\"active\"}";
+req.contentType = "application/json";
+
+// Добавление заголовков авторизации и кастомных метаданных:
+req.headers.push_back({"Authorization", "Bearer my_secret_token_123"});
+req.headers.push_back({"X-Device-Id", "ESP8266_Clock"});
+
+// Индивидуальный таймаут именно для этого запроса:
+req.customTimeout = 5000; // 5 секунд
+
+req.callback = [](AsyncHttpResponse& res) {
+    if (res.isSuccess()) {
+        Serial.printf("Сервер ответил HTTP %d\n", res.code);
+    } else {
+        Serial.printf("Ошибка авторизации/сети: %d\n", res.code);
+    }
+};
+
+httpClient.send(req);
+```
+
+### 6. Конвейер запросов с Keep-Alive
+При постановке в очередь двух запросов к одному серверу соединение устанавливается один раз, а второй запрос отрабатывает практически мгновенно:
+```cpp
+// Запрос 1: Текущая погода
+httpClient.get("https://api.open-meteo.com/v1/forecast?latitude=46.48&longitude=30.74&current=temperature_2m", [](AsyncHttpResponse& res) {
+    Serial.println("Текущая погода получена (полный TLS-хэндшейк ~400 мс)");
+});
+
+// Запрос 2: Прогноз (встаёт в очередь)
+httpClient.get("https://api.open-meteo.com/v1/forecast?latitude=46.48&longitude=30.74&daily=temperature_2m_max&forecast_days=3", [](AsyncHttpResponse& res) {
+    Serial.println("Прогноз получен мгновенно через тот же сокет (~20 мс)!");
+});
 ```
 
 ---
 
 ## 🛠️ API Справочник
 
-### Методы запросов
-| Метод | Описание |
-| :--- | :--- |
-| `get(url, callback)` | Асинхронный GET запрос |
-| `post(url, payload, contentType, callback)` | Асинхронный POST запрос с телом |
-| `send(AsyncHttpRequest)` | Универсальный запрос с кастомными заголовками и методом |
-| `isBusy()` | `true`, если выполняется запрос или очередь не пуста |
-| `isIdle()` | `true`, если библиотека свободна для новых запросов |
-| `getQueueSize()` | Количество ожидающих запросов в очереди |
-| `stop()` | Остановка клиента, закрытие сокетов и очистка очереди |
+### Методы класса AsyncHTTP
 
-### Настройки
-| Метод | Описание | По умолчанию |
-| :--- | :--- | :--- |
-| `setTimeout(ms)` | Таймаут ожидания соединения и данных | `10000` (10 сек) |
-| `setKeepAlive(seconds)` | Удержание Keep-Alive (0/false = выкл, >0 = сек ожидания, max 10) | `10` сек |
-| `setFollowRedirects(bool, max)` | Следование за HTTP 301/302 перенаправлениями | `true`, max 3 |
-| `setMaxBodySize(bytes)` | Защита от исчерпания RAM при слишком большом ответе | `16384` (16 КБ) |
-| `setBufferSizes(rx, tx)` | Размеры буферов BearSSL для ESP8266 | `2048, 512` |
+#### Управление жизненным циклом
+* **`AsyncHTTP(bool useTask = false)`**  
+  Конструктор. На ESP32 при `useTask = true` автомат работает в отдельной задаче FreeRTOS.
+* **`bool begin(core = 1, stackSize = 8192, priority = 1)`**  
+  Инициализация клиента и запуск фонового воркера (на ESP32).
+* **`void stop()`**  
+  Остановка работы, закрытие открытых сокетов и очистка очереди запросов.
+* **`void tick()`**  
+  Шаг конечного автомата. На ESP8266 обязательно вызывается в `loop()`.
 
-### Структура `AsyncHttpResponse`
-- `res.code`: HTTP статус-код (200, 404 и т.д.) либо код ошибки `< 0` (`HTTP_ERR_TIMEOUT`, `HTTP_ERR_CONNECT` и др.).
-- `res.body`: Строка с полученным телом ответа.
-- `res.contentType`: Значение заголовка `Content-Type`.
-- `res.contentLength`: Длина контента (-1 если chunked).
-- `res.isSuccess()`: Возвращает `true`, если статус 2xx.
-- `res.errorString()`: Текстовое описание кода ошибки или статуса.
-- `res.getHeader("Name")`: Получение значения указанного заголовка.
-- `res.extract("field", isJson)`: Мгновенное извлечение значения из JSON или XML без аллокации дерева документов.
-- `res.parseJson(doc)`: Десериализация в `JsonDocument` (ArduinoJson 7).
+#### Отправка запросов
+* **`bool get(const String& url, AsyncHttpCallback cb = nullptr)`**  
+  **`bool get(const char* url, AsyncHttpCallback cb = nullptr)`**  
+  Постановка в очередь асинхронного GET-запроса.
+* **`bool post(const String& url, const String& payload, const char* contentType = "application/x-www-form-urlencoded", AsyncHttpCallback cb = nullptr)`**  
+  **`bool post(const char* url, const char* payload, const char* contentType = "application/x-www-form-urlencoded", AsyncHttpCallback cb = nullptr)`**  
+  Постановка в очередь асинхронного POST-запроса с телом.
+* **`bool send(const AsyncHttpRequest& req)`**  
+  Универсальная отправка запроса с кастомным методом (`HTTP_GET`, `HTTP_POST`, `HTTP_PUT`, `HTTP_DELETE`, `HTTP_HEAD`, `HTTP_PATCH`) и произвольными заголовками.
+
+#### Диагностика и статус
+* **`bool isBusy() const`**  
+  Возвращает `true`, если в данный момент выполняется запрос или очередь не пуста.
+* **`bool isIdle() const`**  
+  Возвращает `true`, если клиент свободен для выполнения новых запросов.
+* **`size_t getQueueSize() const`**  
+  Текущее количество запросов в очереди ожидания.
+* **`HttpError getLastError() const`**  
+  Код последней возникшей ошибки.
+* **`String getLastErrorString() const`**  
+  Текстовое описание последней ошибки.
+
+#### Настройки и конфигурация
+* **`void setKeepAlive(uint8_t seconds = 10)`**  
+  Настройка соединения Keep-Alive:
+  - `0` (или `false`) — выключено (`Connection: close`, сокет закрывается сразу).
+  - `> 0` (или `true`) — включено, задаёт таймаут простоя в секундах до авто-закрытия (аппаратный лимит: максимум 10 сек).
+* **`void setTimeout(uint32_t timeoutMs)`**  
+  Таймаут ожидания подключения и приёма данных (по умолчанию 10 000 мс).
+* **`void setFollowRedirects(bool enable, uint8_t maxRedirects = 3)`**  
+  Автоматическое следование за HTTP перенаправлениями (301, 302, 303, 307, 308).
+* **`void setMaxBodySize(size_t maxBytes)`**  
+  Максимально допустимый размер тела ответа (по умолчанию 16 КБ) для защиты кучи от переполнения.
+* **`void setMaxQueueSize(size_t sz)`**  
+  Максимальная глубина очереди запросов (по умолчанию 16).
+* **`void setBufferSizes(uint16_t rx, uint16_t tx)`**  
+  Настройка буферов BearSSL для ESP8266 (по умолчанию 2048 RX, 512 TX).
 
 ---
 
-## 📊 Сравнение с HTTPClient
+### Структура ответа AsyncHttpResponse
+
+В callback передаётся ссылка на объект `AsyncHttpResponse res`:
+
+| Поле / Метод | Тип | Описание |
+| :--- | :--- | :--- |
+| `res.code` | `int` | Код ответа сервера (200, 404 и др.) либо код ошибки `< 0` |
+| `res.body` | `String` | Тело ответа сервера |
+| `res.contentType` | `String` | Значение заголовка `Content-Type` |
+| `res.contentLength` | `int` | Длина тела из заголовка (-1 если chunked) |
+| `res.headers` | `vector` | Список всех полученных HTTP-заголовков |
+| `res.isSuccess()` | `bool` | Возвращает `true`, если код 2xx (успех) |
+| `res.isError()` | `bool` | Возвращает `true`, если произошла сетевая ошибка (`code < 0`) |
+| `res.errorString()` | `String` | Человекочитаемое описание статуса или ошибки |
+| `res.getHeader("Name")` | `String` | Значение указанного заголовка ответа |
+| `res.extract("key", isJson)` | `String` | Быстрое извлечение значения поля из JSON или XML |
+| `res.parseJson(doc)` | `Error` | Парсинг тела в `JsonDocument` (ArduinoJson 7) |
+
+---
+
+### Коды ошибок HttpError
+
+Если сетевой запрос завершился неудачно, `res.code` содержит отрицательное число:
+
+| Код | Константа | Описание |
+| :---: | :--- | :--- |
+| `0` | `HTTP_OK` | Успешно |
+| `-1` | `HTTP_ERR_NO_WIFI` | Нет подключения к точке доступа Wi-Fi |
+| `-2` | `HTTP_ERR_INVALID_URL` | Некорректный или неподдерживаемый URL |
+| `-3` | `HTTP_ERR_CONNECT` | Ошибка установки TCP/TLS соединения |
+| `-4` | `HTTP_ERR_SEND` | Ошибка отправки пакета в сокет |
+| `-5` | `HTTP_ERR_TIMEOUT` | Таймаут ожидания ответа сервера |
+| `-6` | `HTTP_ERR_READ_TIMEOUT` | Обрыв связи во время чтения тела |
+| `-7` | `HTTP_ERR_TOO_MANY_REDIRECTS` | Превышен лимит редиректов (301/302) |
+| `-8` | `HTTP_ERR_TOO_LARGE` | Размер тела превысил лимит `maxBodySize` |
+| `-9` | `HTTP_ERR_QUEUE_FULL` | Очередь запросов переполнена |
+| `-10` | `HTTP_ERR_CANCELLED` | Запрос отменён вызовом `stop()` |
+| `-11` | `HTTP_ERR_PARSE` | Ошибка парсинга служебных данных протокола |
+
+---
+
+## 📊 Сравнение со стандартным HTTPClient
 
 | Параметр | Стандартный HTTPClient | asyncHTTP |
 | :--- | :---: | :---: |
 | Блокировка `loop()` | **Да (1–4 секунды)** | **Нет (0 мс)** |
-| Мерцание/замирание экрана часов | **Да** | **Полностью устранено** |
+| Замирание/пропуск событий | **Да** | **Полностью устранено** |
 | Поддержка Chunked Encoding | Ограниченная | **Полная потоковая** |
-| Повторное использование TLS (Keep-Alive) | Нет / Ручное | **Автоматическое** |
+| Повторное использование TLS (Keep-Alive) | Нет / Ручное | **Автоматическое с тайм-аутом** |
 | Защита кучи от переполнения (OOM) | Нет | **Да (`maxBodySize`)** |
 | Очередь запросов | Нет | **Да (FIFO Queue)** |
 | Фоновый режим FreeRTOS (ESP32) | Нет | **Да (`AsyncHTTP(true)`)** |
@@ -166,4 +329,4 @@ void loop() {
 
 ## 📄 Лицензия
 
-MIT License © 2026 Serhii Le
+Распространяется под лицензией **MIT**. Автор: **Serhii Le**.
