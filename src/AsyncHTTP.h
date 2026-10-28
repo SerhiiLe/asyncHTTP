@@ -328,6 +328,16 @@ public:
         }
     }
 
+    // Принудительное закрытие активного соединения (освобождение TCP сокета и TLS буферов)
+    void closeConnection() {
+        if (_activeClient && _activeClient->connected()) {
+            _activeClient->stop();
+        }
+        _activeClient = nullptr;
+        _connectedHost = "";
+        _connectedPort = 0;
+    }
+
     // Настройка автоматического перехода по перенаправлениям (301, 302, 303, 307, 308)
     void setFollowRedirects(bool enable, uint8_t maxRedirects = 3) {
         _followRedirects = enable;
@@ -1066,9 +1076,21 @@ private:
             _currentReq.callback(_response);
         }
 
+        // Немедленно освобождаем буферы ответа, запроса и вспомогательные строки из кучи (RAM)
+        _response = AsyncHttpResponse();
+        _currentReq = AsyncHttpRequest();
+        _headerLine = String();
+        _chunkLine = String();
+        _location = String();
+
         _state = STATE_IDLE;
         if (_connectionClose || _keepAliveTimeoutSec == 0) {
+            if (_activeClient && _activeClient->connected()) {
+                _activeClient->stop();
+            }
             _activeClient = nullptr;
+            _connectedHost = "";
+            _connectedPort = 0;
         }
         _lastError = ASYNC_HTTP_OK;
 
