@@ -10,33 +10,33 @@
 #endif
 
 // HTTP-методы запросов
-enum HttpMethod {
-    HTTP_GET,
-    HTTP_POST,
-    HTTP_PUT,
-    HTTP_DELETE,
-    HTTP_HEAD,
-    HTTP_PATCH
+enum AsyncHttpMethod {
+    ASYNC_HTTP_GET,
+    ASYNC_HTTP_POST,
+    ASYNC_HTTP_PUT,
+    ASYNC_HTTP_DELETE,
+    ASYNC_HTTP_HEAD,
+    ASYNC_HTTP_PATCH
 };
 
 // Коды ошибок для getLastError() и возврата в response.code
-enum HttpError {
-    HTTP_OK = 0,                    // Запрос успешно выполнен
-    HTTP_ERR_NO_WIFI = -1,          // Нет подключения к Wi-Fi
-    HTTP_ERR_INVALID_URL = -2,      // Некорректный или неподдерживаемый URL
-    HTTP_ERR_CONNECT = -3,          // Ошибка установки TCP/TLS соединения
-    HTTP_ERR_SEND = -4,             // Ошибка отправки HTTP-пакета
-    HTTP_ERR_TIMEOUT = -5,          // Таймаут ожидания ответа сервера
-    HTTP_ERR_READ_TIMEOUT = -6,     // Таймаут при чтении данных тела или заголовков
-    HTTP_ERR_TOO_MANY_REDIRECTS = -7,// Превышен лимит перенаправлений (301/302)
-    HTTP_ERR_TOO_LARGE = -8,        // Размер тела превышает maxBodySize
-    HTTP_ERR_QUEUE_FULL = -9,       // Очередь запросов переполнена
-    HTTP_ERR_CANCELLED = -10,       // Запрос отменен пользователем
-    HTTP_ERR_PARSE = -11            // Ошибка парсинга данных (например, chunked)
+enum AsyncHttpError {
+    ASYNC_HTTP_OK = 0,                    // Запрос успешно выполнен
+    ASYNC_HTTP_ERR_NO_WIFI = -1,          // Нет подключения к Wi-Fi
+    ASYNC_HTTP_ERR_INVALID_URL = -2,      // Некорректный или неподдерживаемый URL
+    ASYNC_HTTP_ERR_CONNECT = -3,          // Ошибка установки TCP/TLS соединения
+    ASYNC_HTTP_ERR_SEND = -4,             // Ошибка отправки HTTP-пакета
+    ASYNC_HTTP_ERR_TIMEOUT = -5,          // Таймаут ожидания ответа сервера
+    ASYNC_HTTP_ERR_READ_TIMEOUT = -6,     // Таймаут при чтении данных тела или заголовков
+    ASYNC_HTTP_ERR_TOO_MANY_REDIRECTS = -7,// Превышен лимит перенаправлений (301/302)
+    ASYNC_HTTP_ERR_TOO_LARGE = -8,        // Размер тела превышает maxBodySize
+    ASYNC_HTTP_ERR_QUEUE_FULL = -9,       // Очередь запросов переполнена
+    ASYNC_HTTP_ERR_CANCELLED = -10,       // Запрос отменен пользователем
+    ASYNC_HTTP_ERR_PARSE = -11            // Ошибка парсинга данных (например, chunked)
 };
 
 // Заголовок HTTP (ключ-значение)
-struct HttpHeader {
+struct AsyncHttpHeader {
     String name;
     String value;
 };
@@ -236,29 +236,29 @@ namespace AsyncHTTPCore {
 
 // Структура ответа HTTP
 struct AsyncHttpResponse {
-    int code = 0;                    // HTTP статус код (200, 404 и т.д.) или код ошибки HttpError (< 0)
-    String body;                     // Тело ответа
-    String contentType;              // Тип контента
-    int contentLength = -1;          // Content-Length (-1 если chunked или не указан)
-    std::vector<HttpHeader> headers; // Полученные заголовки
+    int code = 0;                         // HTTP статус код (200, 404 и т.д.) или код ошибки AsyncHttpError (< 0)
+    String body;                          // Тело ответа
+    String contentType;                   // Тип контента
+    int contentLength = -1;               // Content-Length (-1 если chunked или не указан)
+    std::vector<AsyncHttpHeader> headers; // Полученные заголовки
 
     bool isSuccess() const { return code >= 200 && code < 300; }
     bool isError() const { return code < 0; }
 
     String errorString() const {
         switch (code) {
-            case HTTP_OK: return F("OK");
-            case HTTP_ERR_NO_WIFI: return F("No Wi-Fi connection");
-            case HTTP_ERR_INVALID_URL: return F("Invalid URL");
-            case HTTP_ERR_CONNECT: return F("Connection failed");
-            case HTTP_ERR_SEND: return F("Send failed");
-            case HTTP_ERR_TIMEOUT: return F("Response timeout");
-            case HTTP_ERR_READ_TIMEOUT: return F("Read timeout");
-            case HTTP_ERR_TOO_MANY_REDIRECTS: return F("Too many redirects");
-            case HTTP_ERR_TOO_LARGE: return F("Response body too large");
-            case HTTP_ERR_QUEUE_FULL: return F("Queue full");
-            case HTTP_ERR_CANCELLED: return F("Request cancelled");
-            case HTTP_ERR_PARSE: return F("Parse error");
+            case ASYNC_HTTP_OK: return F("OK");
+            case ASYNC_HTTP_ERR_NO_WIFI: return F("No Wi-Fi connection");
+            case ASYNC_HTTP_ERR_INVALID_URL: return F("Invalid URL");
+            case ASYNC_HTTP_ERR_CONNECT: return F("Connection failed");
+            case ASYNC_HTTP_ERR_SEND: return F("Send failed");
+            case ASYNC_HTTP_ERR_TIMEOUT: return F("Response timeout");
+            case ASYNC_HTTP_ERR_READ_TIMEOUT: return F("Read timeout");
+            case ASYNC_HTTP_ERR_TOO_MANY_REDIRECTS: return F("Too many redirects");
+            case ASYNC_HTTP_ERR_TOO_LARGE: return F("Response body too large");
+            case ASYNC_HTTP_ERR_QUEUE_FULL: return F("Queue full");
+            case ASYNC_HTTP_ERR_CANCELLED: return F("Request cancelled");
+            case ASYNC_HTTP_ERR_PARSE: return F("Parse error");
             default:
                 if (code > 0) {
                     return String("HTTP ") + code;
@@ -291,11 +291,11 @@ struct AsyncHttpResponse {
 using AsyncHttpCallback = std::function<void(AsyncHttpResponse&)>;
 
 struct AsyncHttpRequest {
-    HttpMethod method = HTTP_GET;
+    AsyncHttpMethod method = ASYNC_HTTP_GET;
     String url;
     String payload;
     String contentType = "application/x-www-form-urlencoded";
-    std::vector<HttpHeader> headers;
+    std::vector<AsyncHttpHeader> headers;
     AsyncHttpCallback callback = nullptr;
     uint32_t customTimeout = 0; // 0 = использовать тайм-аут по умолчанию
     uint8_t redirectCount = 0;

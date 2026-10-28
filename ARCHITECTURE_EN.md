@@ -71,10 +71,10 @@ stateDiagram-v2
     STATE_IDLE --> STATE_IDLE : Idle Timeout (socket closed)
 
     STATE_CONNECTING --> STATE_SENDING : TCP/TLS connected
-    STATE_CONNECTING --> STATE_IDLE : Connection failed (HTTP_ERR_CONNECT)
+    STATE_CONNECTING --> STATE_IDLE : Connection failed (ASYNC_HTTP_ERR_CONNECT)
 
     STATE_SENDING --> STATE_WAIT_HEADERS : Packet sent
-    STATE_SENDING --> STATE_IDLE : Send failed (HTTP_ERR_SEND)
+    STATE_SENDING --> STATE_IDLE : Send failed (ASYNC_HTTP_ERR_SEND)
 
     STATE_WAIT_HEADERS --> STATE_READ_HEADERS : client.available() > 0
     STATE_WAIT_HEADERS --> STATE_IDLE : Response timeout
@@ -92,7 +92,7 @@ stateDiagram-v2
 2. **`STATE_CONNECTING`**: Inspects the scheme (`http` or `https`), selects the corresponding client (`_clientHttp` or `_clientHttps`), and initiates `connect(host, port)`.
 3. **`STATE_SENDING`**: Assembles the HTTP/1.1 request wire packet (method, path, Host header, custom headers, payload) and transmits it to the server.
 4. **`STATE_WAIT_HEADERS`**: Non-blocking wait for the first incoming response byte. If `client.available() == 0`, immediately yields control back to `loop()`.
-5. **`STATE_READ_HEADERS`**: Line-by-line header parsing. Extracts HTTP status code, `Content-Length`, `Transfer-Encoding`, `Location`, and `Connection`. Upon reaching the blank line delimiter (`\r\n`), headers are finalized. If the request was `HTTP_HEAD` (RFC 7231/9110), body reading is skipped and the request finishes immediately.
+5. **`STATE_READ_HEADERS`**: Line-by-line header parsing. Extracts HTTP status code, `Content-Length`, `Transfer-Encoding`, `Location`, and `Connection`. Upon reaching the blank line delimiter (`\r\n`), headers are finalized. If the request was `ASYNC_HTTP_HEAD` (RFC 7231/9110), body reading is skipped and the request finishes immediately.
 6. **`STATE_READ_BODY`**: Streaming body acquisition according to the transfer mode:
    - **Chunked Decoder:** Iterative hex length parsing and chunk slice ingestion.
    - **Content-Length:** Reads exact payload byte counts in slices up to 128 bytes.
@@ -144,7 +144,7 @@ On microcontrollers with limited RAM (ESP8266 has ~80 KB total), unconstrained m
    ```
    Leaves over **50 KB of free heap**, eliminating OOM crashes during TLS handshakes.
 2. **Payload Protection (`maxBodySize`):**  
-   Body accumulation is capped at **16 KB** by default (`setMaxBodySize(16384)`). If an oversized response arrives, downloading is aborted with `HTTP_ERR_TOO_LARGE` to protect available RAM.
+   Body accumulation is capped at **16 KB** by default (`setMaxBodySize(16384)`). If an oversized response arrives, downloading is aborted with `ASYNC_HTTP_ERR_TOO_LARGE` to protect available RAM.
 3. **Pre-allocation (`reserve`):**  
    When the server supplies a `Content-Length` header, a single allocation is performed (`body.reserve(len + 1)`), eliminating repetitive reallocations.
 

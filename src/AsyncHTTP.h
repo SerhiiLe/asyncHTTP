@@ -59,7 +59,7 @@ public:
     bool begin(BaseType_t core = 1, uint32_t stackSize = 8192, UBaseType_t priority = 1) {
         _started = true;
         _state = STATE_IDLE;
-        _lastError = HTTP_OK;
+        _lastError = ASYNC_HTTP_OK;
 
         if (_useTask) {
             if (_taskHandle != nullptr) return true; // Уже запущена
@@ -86,7 +86,7 @@ public:
         (void)core; (void)stackSize; (void)priority;
         _started = true;
         _state = STATE_IDLE;
-        _lastError = HTTP_OK;
+        _lastError = ASYNC_HTTP_OK;
         return true;
     }
 #endif
@@ -129,7 +129,7 @@ public:
 
         if (WiFi.status() != WL_CONNECTED) {
             if (_state != STATE_IDLE) {
-                _setError(HTTP_ERR_NO_WIFI);
+                _setError(ASYNC_HTTP_ERR_NO_WIFI);
                 if (_activeClient && _activeClient->connected()) {
                     _activeClient->stop();
                 }
@@ -176,7 +176,7 @@ public:
     // Асинхронный GET запрос (String)
     bool get(const String& url, AsyncHttpCallback cb = nullptr) {
         AsyncHttpRequest req;
-        req.method = HTTP_GET;
+        req.method = ASYNC_HTTP_GET;
         req.url = url;
         req.callback = cb;
         return _enqueueRequest(req);
@@ -192,7 +192,7 @@ public:
               const char* contentType = "application/x-www-form-urlencoded", 
               AsyncHttpCallback cb = nullptr) {
         AsyncHttpRequest req;
-        req.method = HTTP_POST;
+        req.method = ASYNC_HTTP_POST;
         req.url = url;
         req.payload = payload;
         req.contentType = contentType;
@@ -212,7 +212,7 @@ public:
              const char* contentType = "application/x-www-form-urlencoded", 
              AsyncHttpCallback cb = nullptr) {
         AsyncHttpRequest req;
-        req.method = HTTP_PUT;
+        req.method = ASYNC_HTTP_PUT;
         req.url = url;
         req.payload = payload;
         req.contentType = contentType;
@@ -232,7 +232,7 @@ public:
                const char* contentType = "application/x-www-form-urlencoded", 
                AsyncHttpCallback cb = nullptr) {
         AsyncHttpRequest req;
-        req.method = HTTP_PATCH;
+        req.method = ASYNC_HTTP_PATCH;
         req.url = url;
         req.payload = payload;
         req.contentType = contentType;
@@ -250,7 +250,7 @@ public:
     // Асинхронный DELETE запрос без тела (String)
     bool del(const String& url, AsyncHttpCallback cb = nullptr) {
         AsyncHttpRequest req;
-        req.method = HTTP_DELETE;
+        req.method = ASYNC_HTTP_DELETE;
         req.url = url;
         req.callback = cb;
         return _enqueueRequest(req);
@@ -266,7 +266,7 @@ public:
              const char* contentType = "application/x-www-form-urlencoded", 
              AsyncHttpCallback cb = nullptr) {
         AsyncHttpRequest req;
-        req.method = HTTP_DELETE;
+        req.method = ASYNC_HTTP_DELETE;
         req.url = url;
         req.payload = payload;
         req.contentType = contentType;
@@ -284,7 +284,7 @@ public:
     // Асинхронный HEAD запрос (String)
     bool head(const String& url, AsyncHttpCallback cb = nullptr) {
         AsyncHttpRequest req;
-        req.method = HTTP_HEAD;
+        req.method = ASYNC_HTTP_HEAD;
         req.url = url;
         req.callback = cb;
         return _enqueueRequest(req);
@@ -374,7 +374,7 @@ public:
     }
 
     // Код последней ошибки
-    HttpError getLastError() const {
+    AsyncHttpError getLastError() const {
         return _lastError;
     }
 
@@ -439,7 +439,7 @@ private:
     bool _connectedIsHttps = false;
 
     bool _started = false;
-    HttpError _lastError = HTTP_OK;
+    AsyncHttpError _lastError = ASYNC_HTTP_OK;
 
     uint16_t _rxBufferSize = 2048;
     uint16_t _txBufferSize = 512;
@@ -485,14 +485,14 @@ private:
             _queue.pop();
             if (req.callback) {
                 AsyncHttpResponse r;
-                r.code = HTTP_ERR_CANCELLED;
+                r.code = ASYNC_HTTP_ERR_CANCELLED;
                 req.callback(r);
             }
         }
         _unlock();
     }
 
-    void _setError(HttpError err) {
+    void _setError(AsyncHttpError err) {
         _lastError = err;
         _response.code = err;
     }
@@ -507,7 +507,7 @@ private:
             LOG_ASYNC_HTTP(println, F("[AsyncHTTP] Queue full! Dropping request."));
             if (req.callback) {
                 AsyncHttpResponse errRes;
-                errRes.code = HTTP_ERR_QUEUE_FULL;
+                errRes.code = ASYNC_HTTP_ERR_QUEUE_FULL;
                 req.callback(errRes);
             }
             return false;
@@ -555,7 +555,7 @@ private:
         _currentUrl = ParsedUrl::parse(_currentReq.url);
         if (!_currentUrl.valid) {
             LOG_ASYNC_HTTP(printf_P, PSTR("[AsyncHTTP] Invalid URL: %s\n"), _currentReq.url.c_str());
-            _setError(HTTP_ERR_INVALID_URL);
+            _setError(ASYNC_HTTP_ERR_INVALID_URL);
             _finishRequest();
             return;
         }
@@ -598,7 +598,7 @@ private:
         bool ok = _activeClient->connect(_currentUrl.host.c_str(), _currentUrl.port);
         if (!ok) {
             LOG_ASYNC_HTTP(println, F("[AsyncHTTP] Connection failed!"));
-            _setError(HTTP_ERR_CONNECT);
+            _setError(ASYNC_HTTP_ERR_CONNECT);
             _finishRequest();
             return;
         }
@@ -616,12 +616,12 @@ private:
     void _handleSending() {
         const char* methodStr = "GET";
         switch (_currentReq.method) {
-            case HTTP_GET: methodStr = "GET"; break;
-            case HTTP_POST: methodStr = "POST"; break;
-            case HTTP_PUT: methodStr = "PUT"; break;
-            case HTTP_DELETE: methodStr = "DELETE"; break;
-            case HTTP_HEAD: methodStr = "HEAD"; break;
-            case HTTP_PATCH: methodStr = "PATCH"; break;
+            case ASYNC_HTTP_GET: methodStr = "GET"; break;
+            case ASYNC_HTTP_POST: methodStr = "POST"; break;
+            case ASYNC_HTTP_PUT: methodStr = "PUT"; break;
+            case ASYNC_HTTP_DELETE: methodStr = "DELETE"; break;
+            case ASYNC_HTTP_HEAD: methodStr = "HEAD"; break;
+            case ASYNC_HTTP_PATCH: methodStr = "PATCH"; break;
         }
 
         String req;
@@ -644,8 +644,8 @@ private:
             req += F("Connection: close\r\n");
         }
 
-        if (_currentReq.payload.length() > 0 || _currentReq.method == HTTP_POST || 
-            _currentReq.method == HTTP_PUT || _currentReq.method == HTTP_PATCH) {
+        if (_currentReq.payload.length() > 0 || _currentReq.method == ASYNC_HTTP_POST || 
+            _currentReq.method == ASYNC_HTTP_PUT || _currentReq.method == ASYNC_HTTP_PATCH) {
             if (_currentReq.contentType.length() > 0) {
                 req += F("Content-Type: ");
                 req += _currentReq.contentType;
@@ -676,7 +676,7 @@ private:
 
         if (written == 0) {
             LOG_ASYNC_HTTP(println, F("[AsyncHTTP] Send failed!"));
-            _setError(HTTP_ERR_SEND);
+            _setError(ASYNC_HTTP_ERR_SEND);
             _finishRequest();
             return;
         }
@@ -696,14 +696,14 @@ private:
     void _handleWaitHeaders() {
         if (!_activeClient->connected() && !_activeClient->available()) {
             LOG_ASYNC_HTTP(println, F("[AsyncHTTP] Connection dropped waiting for response!"));
-            _setError(HTTP_ERR_CONNECT);
+            _setError(ASYNC_HTTP_ERR_CONNECT);
             _finishRequest();
             return;
         }
 
         if (millis() - _stateStartTime > _timeoutMs) {
             LOG_ASYNC_HTTP(println, F("[AsyncHTTP] Response headers timeout!"));
-            _setError(HTTP_ERR_TIMEOUT);
+            _setError(ASYNC_HTTP_ERR_TIMEOUT);
             _finishRequest();
             return;
         }
@@ -769,7 +769,7 @@ private:
 
         if (millis() - _stateStartTime > _timeoutMs) {
             LOG_ASYNC_HTTP(println, F("[AsyncHTTP] Read headers timeout!"));
-            _setError(HTTP_ERR_READ_TIMEOUT);
+            _setError(ASYNC_HTTP_ERR_READ_TIMEOUT);
             _finishRequest();
         }
     }
@@ -801,7 +801,7 @@ private:
 
                 ParsedUrl newUrl = ParsedUrl::parse(_currentReq.url);
                 if (!newUrl.valid) {
-                    _setError(HTTP_ERR_INVALID_URL);
+                    _setError(ASYNC_HTTP_ERR_INVALID_URL);
                     _finishRequest();
                     return;
                 }
@@ -822,14 +822,14 @@ private:
                 _handleConnecting();
                 return;
             } else if (_currentReq.redirectCount >= _maxRedirects) {
-                _setError(HTTP_ERR_TOO_MANY_REDIRECTS);
+                _setError(ASYNC_HTTP_ERR_TOO_MANY_REDIRECTS);
                 _finishRequest();
                 return;
             }
         }
 
         // RFC 7231 / RFC 9110: Ответ на запрос HEAD никогда не содержит тело сообщения
-        if (_currentReq.method == HTTP_HEAD) {
+        if (_currentReq.method == ASYNC_HTTP_HEAD) {
             _onBodyFinished();
             return;
         }
@@ -884,7 +884,7 @@ private:
                             _chunkState = CHUNK_STATE_DATA;
                         } else {
                             LOG_ASYNC_HTTP(printf_P, PSTR("[AsyncHTTP] Bad chunk size hex: '%s'\n"), line.c_str());
-                            _setError(HTTP_ERR_PARSE);
+                            _setError(ASYNC_HTTP_ERR_PARSE);
                             _finishRequest();
                             return;
                         }
@@ -906,7 +906,7 @@ private:
                         if (_response.body.length() + n <= _maxBodySize) {
                             _response.body.concat(buf, n);
                         } else {
-                            _setError(HTTP_ERR_TOO_LARGE);
+                            _setError(ASYNC_HTTP_ERR_TOO_LARGE);
                             _finishRequest();
                             return;
                         }
@@ -947,7 +947,7 @@ private:
             if (_chunkState == CHUNK_STATE_TRAILERS) {
                 _onBodyFinished();
             } else {
-                _setError(HTTP_ERR_READ_TIMEOUT);
+                _setError(ASYNC_HTTP_ERR_READ_TIMEOUT);
                 _finishRequest();
             }
             return;
@@ -955,7 +955,7 @@ private:
 
         if (millis() - _stateStartTime > _timeoutMs) {
             LOG_ASYNC_HTTP(println, F("[AsyncHTTP] Chunked body read timeout!"));
-            _setError(HTTP_ERR_READ_TIMEOUT);
+            _setError(ASYNC_HTTP_ERR_READ_TIMEOUT);
             _finishRequest();
         }
     }
@@ -974,7 +974,7 @@ private:
                 if (_response.body.length() + n <= _maxBodySize) {
                     _response.body.concat(buf, n);
                 } else {
-                    _setError(HTTP_ERR_TOO_LARGE);
+                    _setError(ASYNC_HTTP_ERR_TOO_LARGE);
                     _finishRequest();
                     return;
                 }
@@ -987,14 +987,14 @@ private:
         }
 
         if (!_activeClient->connected() && !_activeClient->available()) {
-            _setError(HTTP_ERR_READ_TIMEOUT);
+            _setError(ASYNC_HTTP_ERR_READ_TIMEOUT);
             _finishRequest();
             return;
         }
 
         if (millis() - _stateStartTime > _timeoutMs) {
             LOG_ASYNC_HTTP(println, F("[AsyncHTTP] Body read timeout!"));
-            _setError(HTTP_ERR_READ_TIMEOUT);
+            _setError(ASYNC_HTTP_ERR_READ_TIMEOUT);
             _finishRequest();
         }
     }
@@ -1011,7 +1011,7 @@ private:
                 if (_response.body.length() + n <= _maxBodySize) {
                     _response.body.concat(buf, n);
                 } else {
-                    _setError(HTTP_ERR_TOO_LARGE);
+                    _setError(ASYNC_HTTP_ERR_TOO_LARGE);
                     _finishRequest();
                     return;
                 }
@@ -1025,7 +1025,7 @@ private:
 
         if (millis() - _stateStartTime > _timeoutMs) {
             LOG_ASYNC_HTTP(println, F("[AsyncHTTP] Body read timeout (EOF)!"));
-            _setError(HTTP_ERR_READ_TIMEOUT);
+            _setError(ASYNC_HTTP_ERR_READ_TIMEOUT);
             _finishRequest();
         }
     }
@@ -1049,11 +1049,11 @@ private:
     }
 
     void _finishRequest() {
-        if (_lastError != HTTP_OK && _response.code >= 0) {
+        if (_lastError != ASYNC_HTTP_OK && _response.code >= 0) {
             _response.code = _lastError;
         }
 
-        if (_lastError != HTTP_OK) {
+        if (_lastError != ASYNC_HTTP_OK) {
             if (_activeClient && _activeClient->connected()) {
                 _activeClient->stop();
             }
@@ -1070,7 +1070,7 @@ private:
         if (_connectionClose || _keepAliveTimeoutSec == 0) {
             _activeClient = nullptr;
         }
-        _lastError = HTTP_OK;
+        _lastError = ASYNC_HTTP_OK;
 
         _processQueue();
     }

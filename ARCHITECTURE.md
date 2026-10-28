@@ -71,10 +71,10 @@ stateDiagram-v2
     STATE_IDLE --> STATE_IDLE : Idle Timeout (закрытие сокета)
 
     STATE_CONNECTING --> STATE_SENDING : TCP/TLS подключен
-    STATE_CONNECTING --> STATE_IDLE : Ошибка подключения (HTTP_ERR_CONNECT)
+    STATE_CONNECTING --> STATE_IDLE : Ошибка подключения (ASYNC_HTTP_ERR_CONNECT)
 
     STATE_SENDING --> STATE_WAIT_HEADERS : Пакет отправлен
-    STATE_SENDING --> STATE_IDLE : Ошибка отправки (HTTP_ERR_SEND)
+    STATE_SENDING --> STATE_IDLE : Ошибка отправки (ASYNC_HTTP_ERR_SEND)
 
     STATE_WAIT_HEADERS --> STATE_READ_HEADERS : client.available() > 0
     STATE_WAIT_HEADERS --> STATE_IDLE : Таймаут ожидания ответа
@@ -92,7 +92,7 @@ stateDiagram-v2
 2. **`STATE_CONNECTING`**: Проверяет схему (`http` или `https`), выбирает соответствующий клиент (`_clientHttp` или `_clientHttps`) и вызывает `connect(host, port)`.
 3. **`STATE_SENDING`**: Формирует HTTP/1.1 пакет, отправляет метод, путь, Host, заголовки, тело и переходит в ожидание ответа.
 4. **`STATE_WAIT_HEADERS`**: Неблокирующее ожидание первого байта ответа. Если в `tick()` данных нет — мгновенно возвращает управление в `loop()`.
-5. **`STATE_READ_HEADERS`**: Построчное чтение заголовков. Парсит код ответа, `Content-Length`, `Transfer-Encoding`, `Location`, `Connection`. При получении `\r\n` заголовки считаются прочитанными. Если метод запроса был `HTTP_HEAD` (RFC 7231/9110), чтение тела не выполняется и запрос сразу переходит к завершению.
+5. **`STATE_READ_HEADERS`**: Построчное чтение заголовков. Парсит код ответа, `Content-Length`, `Transfer-Encoding`, `Location`, `Connection`. При получении `\r\n` заголовки считаются прочитанными. Если метод запроса был `ASYNC_HTTP_HEAD` (RFC 7231/9110), чтение тела не выполняется и запрос сразу переходит к завершению.
 6. **`STATE_READ_BODY`**: Приём полезной нагрузки в зависимости от типа передачи:
    - **Chunked Decoder:** пошаговый разбор hex-длин и данных чанков.
    - **Content-Length:** приём точного количества байт блоками до 128 байт.
@@ -144,7 +144,7 @@ stateDiagram-v2
    ```
    Это оставляет более **50 КБ свободной оперативной памяти**, предотвращая фрагментацию кучи.
 2. **Лимит тела ответа (`maxBodySize`):**  
-   По умолчанию максимальный размер принимаемого тела ограничен **16 КБ** (`setMaxBodySize(16384)`). Если сервер попытается отдать мегабайтный файл, клиент остановит загрузку с кодом ошибки `HTTP_ERR_TOO_LARGE` и не позволит исчерпать кучу.
+   По умолчанию максимальный размер принимаемого тела ограничен **16 КБ** (`setMaxBodySize(16384)`). Если сервер попытается отдать мегабайтный файл, клиент остановит загрузку с кодом ошибки `ASYNC_HTTP_ERR_TOO_LARGE` и не позволит исчерпать кучу.
 3. **Предвыделение памяти (`reserve`):**  
    Если сервер передаёт заголовок `Content-Length`, буфер строки делает одиночную аллокацию `body.reserve(len + 1)`, исключая многократные реаллокации памяти.
 

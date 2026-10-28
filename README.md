@@ -29,7 +29,7 @@ A lightweight, non-blocking asynchronous HTTP/HTTPS client library for **ESP8266
    - [Методы класса AsyncHTTP](#методы-класса-asynchttp)
    - [Структура запроса AsyncHttpRequest](#структура-запроса-asynchttprequest)
    - [Структура ответа AsyncHttpResponse](#структура-ответа-asynchttpresponse)
-   - [Коды ошибок HttpError](#коды-ошибок-httperror)
+   - [Коды ошибок AsyncHttpError](#коды-ошибок-asynchttperror)
 6. [Сравнение со стандартным HTTPClient](#-сравнение-со-стандартным-httpclient)
 7. [Лицензия](#-лицензия)
 
@@ -211,7 +211,7 @@ httpClient.head("https://api.myserver.com/large-file.bin", [](AsyncHttpResponse&
 
 ```cpp
 AsyncHttpRequest req;
-req.method = HTTP_POST;
+req.method = ASYNC_HTTP_POST;
 req.url = "https://api.myserver.com/v1/telemetry";
 req.payload = "{\"status\":\"active\"}";
 req.contentType = "application/json";
@@ -290,7 +290,7 @@ httpClient.get("https://api.open-meteo.com/v1/forecast?latitude=46.48&longitude=
   Возвращает `true`, если клиент свободен для выполнения новых запросов.
 * **`size_t getQueueSize() const`**  
   Текущее количество запросов в очереди ожидания.
-* **`HttpError getLastError() const`**  
+* **`AsyncHttpError getLastError() const`**  
   Код последней возникшей ошибки.
 * **`String getLastErrorString() const`**  
   Текстовое описание последней ошибки.
@@ -319,11 +319,11 @@ httpClient.get("https://api.open-meteo.com/v1/forecast?latitude=46.48&longitude=
 
 | Поле / Метод | Тип | По умолчанию | Описание |
 | :--- | :--- | :---: | :--- |
-| `req.method` | `HttpMethod` | `HTTP_GET` | Метод HTTP: `HTTP_GET`, `HTTP_POST`, `HTTP_PUT`, `HTTP_DELETE`, `HTTP_HEAD`, `HTTP_PATCH` |
+| `req.method` | `AsyncHttpMethod` | `ASYNC_HTTP_GET` | Метод HTTP: `ASYNC_HTTP_GET`, `ASYNC_HTTP_POST`, `ASYNC_HTTP_PUT`, `ASYNC_HTTP_DELETE`, `ASYNC_HTTP_HEAD`, `ASYNC_HTTP_PATCH` |
 | `req.url` | `String` | `""` | Полный адрес целевого ресурса (`http://` или `https://`, порт, путь и query-параметры) |
 | `req.payload` | `String` | `""` | Тело запроса (строка, JSON, XML или form-data для POST/PUT/PATCH/DELETE) |
 | `req.contentType` | `String` | `"application/x-www-form-urlencoded"` | Значение заголовка `Content-Type` (например, `"application/json"`, `"text/plain"`) |
-| `req.headers` | `std::vector<HttpHeader>` | `{}` | Список кастомных HTTP-заголовков (пары `{name, value}`) |
+| `req.headers` | `std::vector<AsyncHttpHeader>` | `{}` | Список кастомных HTTP-заголовков (пары `{name, value}`) |
 | `req.addHeader(name, value)` | `AsyncHttpRequest&` | — | Удобный метод добавления заголовка (поддерживает чейнинг вызовов `req.addHeader(...).addHeader(...)`) |
 | `req.clearHeaders()` | `void` | — | Очистить список всех добавленных заголовков |
 | `req.callback` | `AsyncHttpCallback` | `nullptr` | Функция обратного вызова: `[](AsyncHttpResponse& res) { ... }`, вызываемая по окончании запроса |
@@ -352,24 +352,24 @@ httpClient.get("https://api.open-meteo.com/v1/forecast?latitude=46.48&longitude=
 
 ---
 
-### Коды ошибок HttpError
+### Коды ошибок AsyncHttpError
 
 Если сетевой запрос завершился неудачно, `res.code` содержит отрицательное число:
 
 | Код | Константа | Описание |
 | :---: | :--- | :--- |
-| `0` | `HTTP_OK` | Успешно |
-| `-1` | `HTTP_ERR_NO_WIFI` | Нет подключения к точке доступа Wi-Fi |
-| `-2` | `HTTP_ERR_INVALID_URL` | Некорректный или неподдерживаемый URL |
-| `-3` | `HTTP_ERR_CONNECT` | Ошибка установки TCP/TLS соединения |
-| `-4` | `HTTP_ERR_SEND` | Ошибка отправки пакета в сокет |
-| `-5` | `HTTP_ERR_TIMEOUT` | Таймаут ожидания ответа сервера |
-| `-6` | `HTTP_ERR_READ_TIMEOUT` | Обрыв связи во время чтения тела |
-| `-7` | `HTTP_ERR_TOO_MANY_REDIRECTS` | Превышен лимит редиректов (301/302) |
-| `-8` | `HTTP_ERR_TOO_LARGE` | Размер тела превысил лимит `maxBodySize` |
-| `-9` | `HTTP_ERR_QUEUE_FULL` | Очередь запросов переполнена |
-| `-10` | `HTTP_ERR_CANCELLED` | Запрос отменён вызовом `stop()` |
-| `-11` | `HTTP_ERR_PARSE` | Ошибка парсинга служебных данных протокола |
+| `0` | `ASYNC_HTTP_OK` | Успешно |
+| `-1` | `ASYNC_HTTP_ERR_NO_WIFI` | Нет подключения к точке доступа Wi-Fi |
+| `-2` | `ASYNC_HTTP_ERR_INVALID_URL` | Некорректный или неподдерживаемый URL |
+| `-3` | `ASYNC_HTTP_ERR_CONNECT` | Ошибка установки TCP/TLS соединения |
+| `-4` | `ASYNC_HTTP_ERR_SEND` | Ошибка отправки пакета в сокет |
+| `-5` | `ASYNC_HTTP_ERR_TIMEOUT` | Таймаут ожидания ответа сервера |
+| `-6` | `ASYNC_HTTP_ERR_READ_TIMEOUT` | Обрыв связи во время чтения тела |
+| `-7` | `ASYNC_HTTP_ERR_TOO_MANY_REDIRECTS` | Превышен лимит редиректов (301/302) |
+| `-8` | `ASYNC_HTTP_ERR_TOO_LARGE` | Размер тела превысил лимит `maxBodySize` |
+| `-9` | `ASYNC_HTTP_ERR_QUEUE_FULL` | Очередь запросов переполнена |
+| `-10` | `ASYNC_HTTP_ERR_CANCELLED` | Запрос отменён вызовом `stop()` |
+| `-11` | `ASYNC_HTTP_ERR_PARSE` | Ошибка парсинга служебных данных протокола |
 
 ---
 

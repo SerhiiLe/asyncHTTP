@@ -112,7 +112,7 @@ void runUniversalSendDemo() {
     Serial.println(F("\n[Demo 3] Universal send() with custom headers, chaining & per-request timeout"));
 
     AsyncHttpRequest req;
-    req.method = HTTP_POST;
+    req.method = ASYNC_HTTP_POST;
     req.url = "https://httpbin.org/post";
     req.payload = "{\"device\":\"ESP_Clock\",\"boot_count\":42}";
     req.contentType = "application/json";

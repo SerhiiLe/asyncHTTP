@@ -27,7 +27,7 @@ A lightweight, non-blocking asynchronous HTTP/HTTPS client library for **ESP8266
    - [AsyncHTTP Class Methods](#asynchttp-class-methods)
    - [AsyncHttpRequest Request Structure](#asynchttprequest-request-structure)
    - [AsyncHttpResponse Response Structure](#asynchttpresponse-response-structure)
-   - [HttpError Error Codes](#httperror-error-codes)
+   - [AsyncHttpError Error Codes](#asynchttperror-error-codes)
 6. [Comparison with Standard HTTPClient](#-comparison-with-standard-httpclient)
 7. [License](#-license)
 
@@ -209,7 +209,7 @@ The `send(req)` method is the centerpiece of the library. It provides exhaustive
 
 ```cpp
 AsyncHttpRequest req;
-req.method = HTTP_POST;
+req.method = ASYNC_HTTP_POST;
 req.url = "https://api.myserver.com/v1/telemetry";
 req.payload = "{\"status\":\"active\"}";
 req.contentType = "application/json";
@@ -288,7 +288,7 @@ All shortcut methods appear in editor autocomplete and forward to `send()`:
   Returns `true` if the client is ready for new requests.
 * **`size_t getQueueSize() const`**  
   Current count of pending requests in the FIFO queue.
-* **`HttpError getLastError() const`**  
+* **`AsyncHttpError getLastError() const`**  
   Error code of the most recent failure.
 * **`String getLastErrorString() const`**  
   Human-readable description of the last error.
@@ -317,11 +317,11 @@ The **`send(const AsyncHttpRequest& req)`** method provides complete declarative
 
 | Field / Method | Type | Default | Description |
 | :--- | :--- | :---: | :--- |
-| `req.method` | `HttpMethod` | `HTTP_GET` | HTTP method: `HTTP_GET`, `HTTP_POST`, `HTTP_PUT`, `HTTP_DELETE`, `HTTP_HEAD`, `HTTP_PATCH` |
+| `req.method` | `AsyncHttpMethod` | `ASYNC_HTTP_GET` | HTTP method: `ASYNC_HTTP_GET`, `ASYNC_HTTP_POST`, `ASYNC_HTTP_PUT`, `ASYNC_HTTP_DELETE`, `ASYNC_HTTP_HEAD`, `ASYNC_HTTP_PATCH` |
 | `req.url` | `String` | `""` | Full target URL (`http://` or `https://`, host, port, path, query parameters) |
 | `req.payload` | `String` | `""` | Request body string (JSON, XML, or form-data for POST/PUT/PATCH/DELETE) |
 | `req.contentType` | `String` | `"application/x-www-form-urlencoded"` | `Content-Type` header value (e.g. `"application/json"`, `"text/plain"`) |
-| `req.headers` | `std::vector<HttpHeader>` | `{}` | List of custom HTTP headers (pairs `{name, value}`) |
+| `req.headers` | `std::vector<AsyncHttpHeader>` | `{}` | List of custom HTTP headers (pairs `{name, value}`) |
 | `req.addHeader(name, value)` | `AsyncHttpRequest&` | — | Helper to add a custom header (supports fluent chaining) |
 | `req.clearHeaders()` | `void` | — | Clears all added headers |
 | `req.callback` | `AsyncHttpCallback` | `nullptr` | Completion callback: `[](AsyncHttpResponse& res) { ... }` |
@@ -336,7 +336,7 @@ The callback receives a reference to `AsyncHttpResponse res`:
 
 | Field / Method | Type | Description |
 | :--- | :--- | :--- |
-| `res.code` | `int` | HTTP status code (200, 404, etc.) or negative `HttpError` code |
+| `res.code` | `int` | HTTP status code (200, 404, etc.) or negative `AsyncHttpError` code |
 | `res.body` | `String` | Response body payload |
 | `res.contentType` | `String` | Value of `Content-Type` response header |
 | `res.contentLength` | `int` | Payload length from header (-1 if chunked or unspecified) |
@@ -350,24 +350,24 @@ The callback receives a reference to `AsyncHttpResponse res`:
 
 ---
 
-### HttpError Error Codes
+### AsyncHttpError Error Codes
 
 When a network operation fails, `res.code` contains a negative integer:
 
 | Code | Constant | Description |
 | :---: | :--- | :--- |
-| `0` | `HTTP_OK` | Request succeeded |
-| `-1` | `HTTP_ERR_NO_WIFI` | No active Wi-Fi connection |
-| `-2` | `HTTP_ERR_INVALID_URL` | Malformed or unsupported URL |
-| `-3` | `HTTP_ERR_CONNECT` | TCP/TLS connection failed |
-| `-4` | `HTTP_ERR_SEND` | Failed to write packet to socket |
-| `-5` | `HTTP_ERR_TIMEOUT` | Server response wait timeout |
-| `-6` | `HTTP_ERR_READ_TIMEOUT` | Connection dropped during body read |
-| `-7` | `HTTP_ERR_TOO_MANY_REDIRECTS` | Exceeded redirect limit (301/302) |
-| `-8` | `HTTP_ERR_TOO_LARGE` | Response body exceeded `maxBodySize` |
-| `-9` | `HTTP_ERR_QUEUE_FULL` | Request queue is full |
-| `-10` | `HTTP_ERR_CANCELLED` | Request cancelled via `stop()` |
-| `-11` | `HTTP_ERR_PARSE` | Protocol data parsing error |
+| `0` | `ASYNC_HTTP_OK` | Request succeeded |
+| `-1` | `ASYNC_HTTP_ERR_NO_WIFI` | No active Wi-Fi connection |
+| `-2` | `ASYNC_HTTP_ERR_INVALID_URL` | Malformed or unsupported URL |
+| `-3` | `ASYNC_HTTP_ERR_CONNECT` | TCP/TLS connection failed |
+| `-4` | `ASYNC_HTTP_ERR_SEND` | Failed to write packet to socket |
+| `-5` | `ASYNC_HTTP_ERR_TIMEOUT` | Server response wait timeout |
+| `-6` | `ASYNC_HTTP_ERR_READ_TIMEOUT` | Connection dropped during body read |
+| `-7` | `ASYNC_HTTP_ERR_TOO_MANY_REDIRECTS` | Exceeded redirect limit (301/302) |
+| `-8` | `ASYNC_HTTP_ERR_TOO_LARGE` | Response body exceeded `maxBodySize` |
+| `-9` | `ASYNC_HTTP_ERR_QUEUE_FULL` | Request queue is full |
+| `-10` | `ASYNC_HTTP_ERR_CANCELLED` | Request cancelled via `stop()` |
+| `-11` | `ASYNC_HTTP_ERR_PARSE` | Protocol data parsing error |
 
 ---
 
