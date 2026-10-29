@@ -613,7 +613,7 @@ private:
             return;
         }
 
-        LOG_ASYNC_HTTP(printf_P, PSTR("[AsyncHTTP] Connected! Free Heap: %u\n"), ESP.getFreeHeap());
+        LOG_ASYNC_HTTP(printf_P, PSTR("[AsyncHTTP] Connected! Free Heap: %lu\n"), (long unsigned int)ESP.getFreeHeap());
         _connectedHost = _currentUrl.host;
         _connectedPort = _currentUrl.port;
         _connectedIsHttps = _currentUrl.isHttps;
