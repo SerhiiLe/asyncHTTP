@@ -11,7 +11,7 @@
     #include <WiFiClientSecure.h>
     #include <WiFiClientSecureBearSSL.h>
     using SecureClient = BearSSL::WiFiClientSecure;
-#elif defined(ESP32)
+#elif defined(ESP32) || defined(ARDUINO_ARCH_ESP32)
     #include <WiFi.h>
     #include <WiFiClient.h>
     #include <WiFiClientSecure.h>
@@ -37,7 +37,7 @@ public:
     // Конструктор: на ESP32 параметр useTask=true запускает конечный автомат
     // в отдельной фоновой задаче FreeRTOS (на ESP8266 tick() вызывается в loop)
     AsyncHTTP(bool useTask = false) : _clientHttp(), _clientHttps() {
-#if defined(ESP32)
+#if defined(ESP32) || defined(ARDUINO_ARCH_ESP32)
         _useTask = useTask;
 #else
         (void)useTask;
@@ -45,7 +45,7 @@ public:
 #if defined(ESP8266)
         _clientHttps.setInsecure();
         _clientHttps.setBufferSizes(_rxBufferSize, _txBufferSize);
-#elif defined(ESP32)
+#elif defined(ESP32) || defined(ARDUINO_ARCH_ESP32)
         _clientHttps.setInsecure();
 #endif
     }
@@ -55,7 +55,7 @@ public:
     }
 
     // Инициализация и запуск библиотеки (и фоновой задачи FreeRTOS на ESP32)
-#if defined(ESP32)
+#if defined(ESP32) || defined(ARDUINO_ARCH_ESP32)
     bool begin(BaseType_t core = 1, uint32_t stackSize = 8192, UBaseType_t priority = 1) {
         _started = true;
         _state = STATE_IDLE;
@@ -95,7 +95,7 @@ public:
     void stop() {
         _started = false;
 
-#if defined(ESP32)
+#if defined(ESP32) || defined(ARDUINO_ARCH_ESP32)
         if (_taskHandle != nullptr) {
             _running = false;
             if (xTaskGetCurrentTaskHandle() != _taskHandle) {
@@ -454,7 +454,7 @@ private:
     uint16_t _rxBufferSize = 2048;
     uint16_t _txBufferSize = 512;
 
-#if defined(ESP32)
+#if defined(ESP32) || defined(ARDUINO_ARCH_ESP32)
     bool _useTask = false;
     volatile bool _running = false;
     TaskHandle_t _taskHandle = nullptr;

@@ -11,7 +11,7 @@
 
 #if defined(ESP8266)
     #include <ESP8266WiFi.h>
-#elif defined(ESP32)
+#elif defined(ESP32) || defined(ARDUINO_ARCH_ESP32)
     #include <WiFi.h>
 #endif
 
@@ -24,7 +24,7 @@ const char* password = "YOUR_WIFI_PASSWORD";
 // Create client instance.
 // On ESP32 passing 'true' runs the FSM in a separate FreeRTOS task.
 // On ESP8266 the cooperative FSM runs via tick() in loop().
-#if defined(ESP32)
+#if defined(ESP32) || defined(ARDUINO_ARCH_ESP32)
 AsyncHTTP httpClient(true);
 #else
 AsyncHTTP httpClient;
